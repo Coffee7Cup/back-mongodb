@@ -11,7 +11,7 @@ const attendenceSchema = new mongoose.Schema({
     default: Date.now,
     required: true,
   },
-  subject: {
+  course: {
     type: String,
     required: true,
   },

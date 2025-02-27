@@ -1,9 +1,11 @@
-import  { User } from '../models/user.model.js';
 import {Attendence} from '../models/attendence.model.js';
-import { ApiError } from '../utils/ApiError.js';
-import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
 import {ApiResponse} from '../utils/ApiResponse.js';
+import  { User } from '../models/user.model.js';
+import { ApiError } from '../utils/ApiError.js';
+import {Class} from '../models/class.model.js';
+import mongoose from 'mongoose';
+import {Course} from '../models/course.model.js';
+import jwt from 'jsonwebtoken';
 
 
 const getAttendenceOfSingleStudent = async (req, res) => {
@@ -28,7 +30,7 @@ const getAttendenceOfSingleStudent = async (req, res) => {
 
     const formattedAttendance = attendenceRecords.map(record => ({
         date: new Date(record.date).toLocaleDateString("en-GB"), // Formats as dd-mm-yyyy
-        subject: record.subject,
+        course: record.course,
         status: record.status
     }));
 
@@ -40,11 +42,11 @@ const getAttendenceOfSingleStudent = async (req, res) => {
 };
 
 
-const getAttendenceOfSubjectInClass = async (req, res) => {
-    const { class: className, subject } = req.body;
+const getAttendenceOfCourseInClass = async (req, res) => {
+    const { className, course } = req.body;
 
-    if (!className || !subject) {
-        return res.status(401).json(new ApiError(400, "Class and subject are required"))
+    if (!className || !course) {
+        return res.status(401).json(new ApiError(400, "Class and course are required"))
     }
 
     const students = await User.find({ class: className }, "_id name uniqueId");
@@ -57,11 +59,11 @@ const getAttendenceOfSubjectInClass = async (req, res) => {
 
     const attendenceRecords = await Attendence.find({
         studentId: { $in: studentIds },
-        subject: subject
+        course: course
     });
 
     if (!attendenceRecords.length) {
-        return res.status(401).json(new ApiError(404, "No attendance records found for this subject in this class"))
+        return res.status(401).json(new ApiError(404, "No attendance records found for this course in this class"))
     }
 
     const attendence = students.map(student => {
@@ -104,17 +106,17 @@ const getAttendenceOfStudentInDate = async (req, res) => {
         .json(new ApiResponse(200, attendence, "Attendance fetched successfully"));
 }
 
-const getAttendenceOfStudentInDateInSubject = async (req, res) => {
-    const { uniqueId, date, subject } = req.body;
+const getAttendenceOfStudentInDateInCourse = async (req, res) => {
+    const { uniqueId, date, course } = req.body;
 
-    if (!uniqueId || !date || !subject) {
-        return res.status(400).json(new ApiError(400, "Unique Id, date, and subject are required"))
+    if (!uniqueId || !date || !course) {
+        return res.status(400).json(new ApiError(400, "Unique Id, date, and course are required"))
     }
 
     const attendence = await Attendence.find({
         studentId: mongoose.Types.ObjectId(uniqueId),
         date: date,
-        subject
+        course
     });
 
     if (!attendence.length) {
@@ -128,54 +130,50 @@ const getAttendenceOfStudentInDateInSubject = async (req, res) => {
 
 //Expected API Request Body
 // {
-//     "class": "10A",
+//     "className": "10A",
 //     "date": "2025-02-17",
-//     "subject": "Mathematics",
+//     "course": "Mathematics",
 //     "data": {
 //         "STU123": "Present",
 //         "STU456": "Present",
 //         "STU789": "Absent"
 //     }
 // }
+
 const reportAttendenceOfClass = async (req, res) => {
-    const { class: className, date, course, data } = req.body;
+    const { className, date, course, data } = req.body; 
 
-    if (!className || !date || !data || !subject) { 
-        return res.status(400).json(new ApiError(400, "Class, date, and attendance data are required"))
+    if (!className || !date || !data || !course) { 
+        return res.status(400).json(new ApiError(400, "Class, date, course, and attendance data are required"));
     }
 
-    // Find all students in the class
-    const students = await User.find({ class: className }, "_id uniqueId name");
-
-    if (!students.length) {
-        return res.status(401).json(new ApiError(404, "No students found in this class"))
+    const classData = await Class.findOne({ name: className }).populate("students", "_id name uniqueId");
+    if (!classData || !classData.students.length) {
+        return res.status(404).json(new ApiError(404, "No students found in this class"));
     }
 
-    // Convert date to proper Date format
     const formattedDate = new Date(date);
 
-    // Create attendance documents for all students
-    const attendanceRecords = students.map(student => {
-        const status = data[student.uniqueId] || "Absent"; // Default to "Absent" if not provided
-        return {
-            studentId: student._id,
-            date: formattedDate,
-            subject: subject, // Assuming subject is passed in the request
-            status
-        };
-    });
+    const attendanceRecords = classData.students.map(student => ({
+        studentId: student._id,
+        date: formattedDate,
+        course,
+        status: data[student.uniqueId] || "Absent", 
+    }));
 
-    // Insert attendance records into the collection
-    await Attendence.insertMany(attendanceRecords);
-
-    return res.status(201).json(new ApiResponse(201, null, "Attendance recorded successfully"));
+    try {
+        await Attendence.insertMany(attendanceRecords);
+        return res.status(201).json(new ApiResponse(201, null, "Attendance recorded successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiError(500, "Failed to record attendance"));
+    }
 };
 
 const modifyAttendence = async (req, res) => {
-    const { uniqueId, date, subject, status } = req.body;
+    const { uniqueId, date, course, status } = req.body;
 
-    if (!uniqueId || !date || !subject || !status) {
-        return res.status(401).json(new ApiError(400, "Unique Id, date, subject, and status are required"))
+    if (!uniqueId || !date || !course || !status) {
+        return res.status(401).json(new ApiError(400, "Unique Id, date, course, and status are required"))
     }
 
     const student = await User.findOne({ uniqueId }, "_id");
@@ -187,7 +185,7 @@ const modifyAttendence = async (req, res) => {
     const formattedDate = new Date(date);
 
     const attendanceRecord = await Attendence.findOneAndUpdate(
-        { studentId: student._id, date: formattedDate, subject },
+        { studentId: student._id, date: formattedDate, course },
         { status },
         { new: true }
     );
@@ -201,9 +199,9 @@ const modifyAttendence = async (req, res) => {
 
 export {
     getAttendenceOfSingleStudent,
-    getAttendenceOfSubjectInClass,
+    getAttendenceOfCourseInClass,
     getAttendenceOfStudentInDate,
-    getAttendenceOfStudentInDateInSubject,
+    getAttendenceOfStudentInDateInCourse,
     
     reportAttendenceOfClass,
     modifyAttendence

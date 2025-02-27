@@ -9,7 +9,7 @@ const courseSchema = new mongoose.Schema({
         type: String,
         required: [true, "Code is required"],
     },
-    courseCreaterdBy : {
+    courseCreatedBy : {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
     },
