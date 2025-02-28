@@ -4,6 +4,7 @@ const classSchema = new mongoose.Schema({
     name : {
         type: String,
         required: [true, "Name is required"],
+        unique: true,
     },
     classCreatedBy : {
         type: mongoose.Schema.Types.ObjectId,

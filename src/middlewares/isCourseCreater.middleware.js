@@ -13,7 +13,7 @@ export const isCourseCreater = async (req, res, next) => {
             return res.status(404).json(new ApiError(404, "Course not found"));
         }
 
-        if(course.courseCreatedBy.toString() !== req.user._id.toString()) {
+        if(course.courseCreatedBy.equals(req.user._id)) {
             return res.status(403).json(new ApiError(403, "You are not authorized to perform this action"));
         }
 

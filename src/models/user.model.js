@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
     uniqueId: {
       type: String,
       required: [true, "College ID is required"],
+      unique : true,
     },
     name: {
       type: String,
@@ -15,6 +16,7 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, "Email is required"],
+      unique: true,
     },
     password: {
       type: String,
