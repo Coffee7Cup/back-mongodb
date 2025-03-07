@@ -14,6 +14,6 @@ import {isAdmin} from '../middlewares/isAdmin.middleware.js';
 const router = Router();
 
 router.route("/create").post(verifyJWT, isAdmin, createCourse);
-router.route("/fetch").get(verifyJWT, fetchCourseDetails);  
+router.route("/fetch-details").get(verifyJWT, fetchCourseDetails);  
 router.route("/modify").patch(verifyJWT, isCourseCreater, modifyCourseDetails);
 router.route("/delete").delete(verifyJWT, isAdmin, deleteCourse);

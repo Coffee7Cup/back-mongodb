@@ -44,7 +44,7 @@ const fetchCourseDetails = async (req, res) => {
 
     try {
         const course = await Course.findOne
-        ({ name }).populate("students");
+        ({ name }).populate("shedule");
 
         if (!course) {
             return res.status(404).json(new ApiError(404, "Course not found"));
@@ -56,6 +56,15 @@ const fetchCourseDetails = async (req, res) => {
     }
 }
 
+const getCoursesOfUser = async (req, res) => {
+    try {
+        const user = req.user;
+        const courses = await Course.find({ courseCreatedBy: user._id });
+        return res.status(200).json(new ApiResponse(200, courses, "Courses fetched successfully"));
+    } catch (error) {
+        return res.status(500).json(new ApiError(500, "Failed to fetch courses"));
+    }
+}
 
 const modifyCourseDetails = async (req, res) => {
     const { courseName, name, code, schedule } = req.body;
@@ -113,6 +122,7 @@ const deleteCourse = async (req, res) => {
 export {
     createCourse,
     fetchCourseDetails,
+    getCoursesOfUser,
     modifyCourseDetails,
     deleteCourse
 }
